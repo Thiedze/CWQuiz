@@ -1,46 +1,27 @@
-using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using CW.Thiedze.Domain;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
+using System;
+using System.Collections.Generic;
 
 namespace CW.Thiedze.Service
 {
     public class UserService : IUserService
     {
-        private string JwtKey { get; } = "";
         private CloudTable UserTable { get; }
 
         public UserService()
         {
-            var connectionString = Environment.GetEnvironmentVariable("STORAGE_CONNCTION_STRING", EnvironmentVariableTarget.Process);
+            var connectionString = Environment.GetEnvironmentVariable("STORAGE_CONNECTION_STRING", EnvironmentVariableTarget.Process);
             var storageAccount = CloudStorageAccount.Parse(connectionString);
             var tableClient = storageAccount.CreateCloudTableClient();
             UserTable = tableClient.GetTableReference("user");
         }
 
-        public string CreateToken(User user)
+        public User Login(string username, string password)
         {
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Username)
-            };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
-            var token = new JwtSecurityToken(user.Username, user.Username, claims, expires: DateTime.Now.AddDays(1), signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        public User Login(string username, string passwordSha256)
-        {
-            User user = GetUser(username, passwordSha256);
-
+            User user = GetUser(username, AuthorizationService.ComputeSha256Hash(password));
+            user.Token = AuthorizationService.GenerateSecurityToken(user);
             return user;
         }
 
@@ -61,9 +42,16 @@ namespace CW.Thiedze.Service
 
             } while (querySegment.ContinuationToken != null);
 
-            return users.Count > 0 ? users[0] : new User(false);
+            if (users.Count == 1)
+            {
+                users[0].IsValid = true;
+                return users[0];
+            }
+            else
+            {
+                return new User(false);
+            }
         }
-
 
     }
 }

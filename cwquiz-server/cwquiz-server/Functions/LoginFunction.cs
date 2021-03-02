@@ -1,10 +1,10 @@
 using CW.Thiedze.Domain;
 using CW.Thiedze.Service;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
+using System.Net.Http;
 
 namespace CW.Thiedze
 {
@@ -20,14 +20,14 @@ namespace CW.Thiedze
         }
 
         [FunctionName("Login")]
-        public ActionResult Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "login")] HttpRequest req, ILogger log)
+        public ActionResult Run([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "login")] HttpRequestMessage request, ILogger log)
         {
-            User user = UserService.Login("sthiems", "6FEC2A9601D5B3581C94F2150FC07FA3D6E45808079428354B868E412B76E6BB");
+            LoginDto userDto = request.Content.ReadAsAsync<LoginDto>().Result;
+            User user = UserService.Login(userDto.Username, userDto.Password);
 
             if (user.IsValid)
             {
-                Logger.LogInformation(user.Firstname);
-                return new ObjectResult(user.Firstname + "" + user.Lastname);
+                return new ObjectResult(user);
             }
             else
             {

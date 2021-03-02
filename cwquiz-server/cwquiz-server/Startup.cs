@@ -17,6 +17,7 @@ namespace CW.Thiedze
         private void Configuration(IServiceCollection services)
         {
             services.AddSingleton<IUserService, UserService>();
+            services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
         }
     }
 }
